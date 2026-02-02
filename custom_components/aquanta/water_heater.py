@@ -39,7 +39,7 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
     """Representation of an Aquanta water heater controller."""
 
     _attr_has_entity_name = True
-    _attr_supported_features = WaterHeaterEntityFeature.AWAY_MODE
+    _attr_supported_features = (WaterHeaterEntityFeature.AWAY_MODE | WaterHeaterEntityFeature.TARGET_TEMPERATURE)
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_operation_list = [STATE_ECO, STATE_PERFORMANCE, STATE_OFF]
     _attr_name = "Water heater"
@@ -96,3 +96,48 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
             ]
         else:
             return None
+
+#    @property
+#    def min_temp(self):
+#        """Return the minimum temperature."""
+#        return 110  # Fahrenheit (Aquanta standard min)
+
+#    @property
+#    def max_temp(self):
+#        """Return the maximum temperature."""
+#        return 140  # Fahrenheit (Aquanta standard max)
+
+    async def async_set_temperature(self, **kwargs):
+        """Set new target temperature."""
+        import aiohttp # Import locally to avoid top-level dependency issues
+
+        target_temperature = kwargs.get("temperature")
+        if target_temperature is None:
+            return
+
+        # 1. Build the URL
+        url = f"https://portal.aquanta.io/api/v1/devices/{self.aquanta_id}/setpoint"
+
+        # 2. Get the auth headers from the existing connection
+        # The coordinator usually holds the 'api' object or 'device' session
+        # We try to grab the headers from the device session directly
+        try:
+            headers = self._device._session.headers
+        except AttributeError:
+            # Fallback if _device isn't directly accessible, try coordinator
+            headers = self.coordinator.api._session.headers
+
+        # 3. Send the command manually
+        async with aiohttp.ClientSession() as session:
+            payload = {"temperature": target_temperature}
+            async with session.post(url, json=payload, headers=headers) as response:
+                if response.status == 200:
+                    # Update local data so the UI slider doesn't bounce back
+                    self.coordinator.data["devices"][self.aquanta_id]["advanced"]["setPoint"] = target_temperature
+                    self.async_write_ha_state()
+                    
+                    # Force a refresh from the cloud
+                    await self.coordinator.async_request_refresh()
+                else:
+                    # Log error if it fails
+                    LOGGER.error("Failed to set Aquanta temperature: %s", await response.text())
