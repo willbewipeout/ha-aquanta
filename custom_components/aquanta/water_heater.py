@@ -10,7 +10,10 @@ from homeassistant.components.water_heater import (
     WaterHeaterEntityFeature,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import (
+    UnitOfTemperature,
+    ATTR_TEMPERATURE,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -108,39 +111,20 @@ class AquantaWaterHeater(AquantaEntity, WaterHeaterEntity):
 #        return 140  # Fahrenheit (Aquanta standard max)
 
     async def async_set_temperature(self, **kwargs):
-        """Set new target temperature."""
-        import aiohttp # Import locally to avoid top-level dependency issues
-
-        target_temperature = kwargs.get("temperature")
-        if target_temperature is None:
+        target_temp = kwargs.get("temperature")
+        if target_temp is None:
             return
 
-        # 1. Get the Client & Headers
-        api_client = self.coordinator.aquanta
-
-        # We check for the session under common names (_session or session)
-        headers = None
-        if hasattr(api_client, "_session") and hasattr(api_client._session, "headers"):
-            headers = api_client._session.headers
-        elif hasattr(api_client, "session") and hasattr(api_client.session, "headers"):
-            headers = api_client.session.headers
-        
-        if not headers:
-            LOGGER.error("Could not find auth headers in aquanta client. Client dir: %s", dir(api_client))
-            return
-
-        # 3. Send the Command
-        url = f"https://portal.aquanta.io/api/v1/devices/{self.aquanta_id}/setpoint"
-        
-        async with aiohttp.ClientSession() as session:
-            payload = {"temperature": target_temperature}
-            async with session.post(url, json=payload, headers=headers) as response:
-                if response.status == 200:
-                    # Success! Update local state immediately.
-                    self.coordinator.data["devices"][self.aquanta_id]["advanced"]["setPoint"] = target_temperature
-                    self.async_write_ha_state()
-                    
-                    # Force a refresh to sync everything up
-                    await self.coordinator.async_request_refresh()
-                else:
-                    LOGGER.error("Failed to set temperature: %s", await response.text())
+        # FIXME: The 'set_temperature' method is not in your available commands list.
+        # You must ensure the underlying device object has a method to set the temperature.
+        # It might be named set_setpoint, set_manual_mode, etc.
+        # Example call:
+        try:
+            # Assuming the device has a set_temperature method
+            self.device.set_temperature(temperature)
+            
+            # OPTIONAL: Optimistically update the state
+            # self._water["temperature"] = temperature
+            # self.async_write_ha_state()
+        except AttributeError:
+            _LOGGER.error("Device does not support set_temperature")
