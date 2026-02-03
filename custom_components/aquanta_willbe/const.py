@@ -4,7 +4,7 @@ from logging import Logger, getLogger
 
 LOGGER: Logger = getLogger(__package__)
 
-NAME = "Aquanta"
-DOMAIN = "aquanta"
-MODEL = "Aquanta Water Heater Controller"
+NAME = "Aquanta Willbe"
+DOMAIN = "aquanta_willbe"
+MODEL = "Aquanta Water Heater Controller with Temp"
 ATTRIBUTION = ""
